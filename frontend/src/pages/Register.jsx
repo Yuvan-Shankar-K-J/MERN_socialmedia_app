@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { register } from '../services/api';
 
@@ -111,7 +112,7 @@ const Register = () => {
         <div className="auth-footer">
           <p className="auth-link-text">
             Already have an account? 
-            <a href="/login" className="auth-link">Sign in here</a>
+            <Link to="/login" className="auth-link">Sign in here</Link>
           </p>
         </div>
       </div>
