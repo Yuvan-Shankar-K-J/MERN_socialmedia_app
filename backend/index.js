@@ -18,13 +18,21 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: process.env.NODE_ENV === 'production' 
+      ? ['https://mern-socialmedia-app-frontend.onrender.com']
+      : ['http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST'],
+    credentials: true
   },
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://mern-socialmedia-app-frontend.onrender.com']
+    : ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
