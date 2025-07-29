@@ -7,7 +7,7 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import { AuthContext } from './context/AuthContext';
 import { ChatContext } from './context/ChatContext';
-import { getChats, getGroupMessages, sendMessage, createChat, addUserToGroup, searchUsers, removeUserFromGroup, getNotifications, markNotificationRead } from './services/api';
+import { getChats, getGroupMessages, sendMessage, createChat, addUserToGroup, searchUsers, removeUserFromGroup, getNotifications, markAsRead } from './services/api';
 import io from 'socket.io-client';
 import ChatBox from './components/ChatBox';
 import UserList from './components/UserList';
@@ -86,7 +86,7 @@ const NotificationBell = () => {
   
   const handleMarkRead = async (id) => {
     try {
-      await markNotificationRead(id, token);
+      await markAsRead(id, token);
       setNotifications(prev => 
         prev.map(n => n._id === id ? { ...n, read: true } : n)
       );

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getNotifications, markNotificationRead } = require('../controllers/notificationController');
+const { getNotifications, markAsRead } = require('../controllers/notificationController');
 const auth = require('../middleware/auth');
 
 router.get('/', auth, getNotifications);
-router.put('/:id/read', auth, markNotificationRead);
+router.put('/:id/read', auth, markAsRead);
 
 // Test endpoint to manually trigger a notification
 router.post('/test', auth, async (req, res) => {

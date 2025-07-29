@@ -42,7 +42,7 @@ export const getComments = (postId, token) => axios.get(`${API_URL}/comments/${p
 export const addComment = (postId, text, token) => axios.post(`${API_URL}/comments/${postId}`, { text }, { headers: { Authorization: `Bearer ${token}` } });
 
 export const getNotifications = (token) => axios.get(`${API_URL}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
-export const markNotificationRead = (id, token) => axios.put(`${API_URL}/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+export const markAsRead = (id, token) => axios.put(`${API_URL}/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
 
 export const followUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/follow`, {}, { headers: { Authorization: `Bearer ${token}` } });
 export const unfollowUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/unfollow`, {}, { headers: { Authorization: `Bearer ${token}` } });
