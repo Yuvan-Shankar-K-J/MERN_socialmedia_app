@@ -7,10 +7,20 @@ const { getIO } = require('../index');
 exports.addComment = async (req, res) => {
   try {
     const { text } = req.body;
-    const { postId } = req.params;
-    const comment = new Comment({ post: postId, user: req.user.id, text });
+    const postId = req.params.postId;
+    
+    const comment = new Comment({
+      post: postId,
+      user: req.user.id,
+      text
+    });
+    
     await comment.save();
-    // Notify post owner if not commenting on own post
+    
+    // Populate user info for the comment
+    const populatedComment = await Comment.findById(comment._id).populate('user', 'name avatar');
+    
+    // Create notification if not commenting on own post
     const post = await Post.findById(postId);
     if (post && post.user.toString() !== req.user.id) {
       console.log('Creating comment notification for post:', postId, 'from user:', req.user.id, 'to user:', post.user);
@@ -21,16 +31,21 @@ exports.addComment = async (req, res) => {
         post: postId,
         comment: comment._id
       });
-      console.log('Comment notification created:', notif);
+      
+      // Populate the notification with user information
+      const populatedNotif = await Notification.findById(notif._id).populate('fromUser', 'name avatar').populate('comment', 'text');
+      console.log('Comment notification created:', populatedNotif);
+      
       const io = getIO(req);
       if (io) {
         console.log('Emitting comment notification to user:', post.user.toString());
-        io.to(post.user.toString()).emit('notification', notif);
+        io.to(post.user.toString()).emit('notification', populatedNotif);
       } else {
         console.log('Socket.IO not available for comment notification');
       }
     }
-    res.status(201).json(comment);
+    
+    res.status(201).json(populatedComment);
   } catch (err) {
     console.error('Error in addComment:', err);
     res.status(500).json({ error: err.message });

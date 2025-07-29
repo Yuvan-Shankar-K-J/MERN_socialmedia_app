@@ -73,11 +73,15 @@ exports.likePost = async (req, res) => {
         fromUser: req.user.id,
         post: post._id
       });
-      console.log('Notification created:', notif);
+      
+      // Populate the notification with user information
+      const populatedNotif = await Notification.findById(notif._id).populate('fromUser', 'name avatar');
+      console.log('Notification created:', populatedNotif);
+      
       const io = getIO(req);
       if (io) {
         console.log('Emitting notification to user:', post.user.toString());
-        io.to(post.user.toString()).emit('notification', notif);
+        io.to(post.user.toString()).emit('notification', populatedNotif);
       } else {
         console.log('Socket.IO not available');
       }

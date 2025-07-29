@@ -103,11 +103,14 @@ io.on('connection', (socket) => {
   try {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
     console.log('Socket connection attempt with token:', token ? 'present' : 'missing');
+    console.log('Socket ID:', socket.id);
+    
     if (token) {
       const decoded = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
       if (decoded && decoded.id) {
         socket.join(decoded.id);
         console.log('User authenticated and joined room:', decoded.id);
+        console.log('Active rooms for this socket:', Array.from(socket.rooms));
       } else {
         console.log('Invalid token for socket connection');
       }
@@ -140,3 +143,7 @@ const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Export getIO function for use in controllers
+const getIO = (req) => req.app && req.app.locals && req.app.locals.io;
+module.exports = { getIO };

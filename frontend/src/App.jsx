@@ -49,21 +49,27 @@ const NotificationBell = () => {
         auth: { token: `Bearer ${token}` }
       });
 
-      socketRef.current.on('connect', () => {
+      socketRef.current.on('connect', () => { 
         console.log('Socket.IO connected successfully');
+        console.log('Socket ID:', socketRef.current.id);
       });
-
+      
       socketRef.current.on('notification', (newNotification) => {
         console.log('Received notification:', newNotification);
         setNotifications(prev => [newNotification, ...prev]);
       });
-
-      socketRef.current.on('connect_error', (error) => {
+      
+      socketRef.current.on('connect_error', (error) => { 
         console.error('Socket.IO connection error:', error);
+      });
+
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('Socket.IO disconnected:', reason);
       });
 
       return () => {
         if (socketRef.current) {
+          console.log('Disconnecting Socket.IO');
           socketRef.current.disconnect();
         }
       };
