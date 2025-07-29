@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.post('/', auth, createPost);
+router.post('/', auth, upload.single('media'), createPost);
 router.get('/feed', auth, getFeed);
 router.get('/explore', auth, getExplore);
 router.post('/:id/like', auth, likePost);

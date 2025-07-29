@@ -7,15 +7,34 @@ const { getIO } = require('../index');
 // Create a new post (with optional media upload)
 exports.createPost = async (req, res) => {
   try {
+    console.log('Creating post with body:', req.body);
+    console.log('File:', req.file);
+    
     const { text } = req.body;
     let media = '';
     if (req.file) {
       media = `/assets/${req.file.filename}`;
+      console.log('Media path:', media);
     }
-    const post = new Post({ user: req.user.id, text, media });
+    
+    // Validate that either text or media is provided
+    if (!text || !text.trim()) {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Post must contain text or media' });
+      }
+    }
+    
+    const post = new Post({ user: req.user.id, text: text || '', media });
+    console.log('Post object:', post);
+    
     await post.save();
-    res.status(201).json(post);
+    console.log('Post saved successfully');
+    
+    // Populate user info before sending response
+    const populatedPost = await Post.findById(post._id).populate('user', 'name avatar');
+    res.status(201).json(populatedPost);
   } catch (err) {
+    console.error('Error creating post:', err);
     res.status(500).json({ error: err.message });
   }
 };

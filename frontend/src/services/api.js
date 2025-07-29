@@ -32,6 +32,12 @@ export const unlinkAccount = (provider, token) => axios.post(`${API_URL}/auth/un
 export const getUserProfile = (id, token) => axios.get(`${API_URL}/auth/profile/${id}`, { headers: { Authorization: `Bearer ${token}` } });
 
 // Posts
+export const createPost = (formData, token) => axios.post(`${API_URL}/posts`, formData, { 
+  headers: { 
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'multipart/form-data'
+  } 
+});
 export const getPosts = (token, userId) => axios.get(`${API_URL}/posts${userId ? `?userId=${userId}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
 export const getFeed = (token) => axios.get(`${API_URL}/posts/feed`, { headers: { Authorization: `Bearer ${token}` } });
 export const getExplore = (token) => axios.get(`${API_URL}/posts/explore`, { headers: { Authorization: `Bearer ${token}` } });

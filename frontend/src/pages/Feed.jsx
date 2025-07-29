@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getFeed, likePost, unlikePost, followUser, unfollowUser, deletePost } from '../services/api';
+import { getFeed, likePost, unlikePost, followUser, unfollowUser, deletePost, createPost } from '../services/api';
 import axios from 'axios';
 import CommentSection from '../components/CommentSection';
 
@@ -20,24 +20,27 @@ const CreatePost = ({ token, onPostCreated }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !file) return;
+    if (!text.trim() && !file) {
+      setError('Please add some text or media to your post');
+      return;
+    }
+    
     setLoading(true);
     setError('');
+    
     try {
       const formData = new FormData();
       formData.append('text', text);
       if (file) formData.append('media', file);
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/posts`,
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      
+      const res = await createPost(formData, token);
       setText('');
       setFile(null);
       setPreview('');
       onPostCreated(res.data);
     } catch (err) {
-      setError('Failed to create post');
+      console.error('Error creating post:', err);
+      setError(err.response?.data?.error || 'Failed to create post');
     } finally {
       setLoading(false);
     }
