@@ -6,4 +6,4 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://mern-socialmedia-backend.onrender.com/api
+        value: https://mern-socialmedia-app-sd1c.onrender.com/api

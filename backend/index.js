@@ -32,6 +32,9 @@ const io = new Server(server, {
   },
 });
 
+// Define getIO function before using it
+const getIO = (req) => req.app && req.app.locals && req.app.locals.io;
+
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
@@ -95,8 +98,6 @@ app.get('/', (req, res) => {
   res.send('FlashChat Backend Running');
 });
 
-// TODO: Add routes for auth, chat, message
-
 // Enhanced Socket.IO setup
 io.on('connection', (socket) => {
   // Authenticate user and join their room for notifications
@@ -145,5 +146,4 @@ server.listen(PORT, () => {
 });
 
 // Export getIO function for use in controllers
-const getIO = (req) => req.app && req.app.locals && req.app.locals.io;
 module.exports = { getIO };
