@@ -1,5 +1,8 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const Notification = require('../models/Notification');
+
+const getIO = req => req.app && req.app.locals && req.app.locals.io;
 
 exports.searchUsers = async (req, res) => {
   try {
@@ -218,5 +221,70 @@ exports.getUserProfile = async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}; 
+
+// Follow a user
+exports.followUser = async (req, res) => {
+  try {
+    const userToFollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
+    if (!userToFollow) return res.status(404).json({ error: 'User not found' });
+    if (userToFollow._id.equals(currentUser._id)) return res.status(400).json({ error: 'Cannot follow yourself' });
+    if (currentUser.following.includes(userToFollow._id)) return res.status(400).json({ error: 'Already following' });
+    currentUser.following.push(userToFollow._id);
+    userToFollow.followers.push(currentUser._id);
+    await currentUser.save();
+    await userToFollow.save();
+    // Create notification
+    const notif = await Notification.create({
+      user: userToFollow._id,
+      type: 'follow',
+      fromUser: currentUser._id
+    });
+    const io = getIO(req);
+    if (io) io.to(userToFollow._id.toString()).emit('notification', notif);
+    res.json({ message: 'Followed user' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Unfollow a user
+exports.unfollowUser = async (req, res) => {
+  try {
+    const userToUnfollow = await User.findById(req.params.id);
+    const currentUser = await User.findById(req.user.id);
+    if (!userToUnfollow) return res.status(404).json({ error: 'User not found' });
+    if (!currentUser.following.includes(userToUnfollow._id)) return res.status(400).json({ error: 'Not following' });
+    currentUser.following = currentUser.following.filter(uid => !uid.equals(userToUnfollow._id));
+    userToUnfollow.followers = userToUnfollow.followers.filter(uid => !uid.equals(currentUser._id));
+    await currentUser.save();
+    await userToUnfollow.save();
+    res.json({ message: 'Unfollowed user' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get followers of a user
+exports.getFollowers = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate('followers', 'name avatar');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.followers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get following of a user
+exports.getFollowing = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate('following', 'name avatar');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user.following);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 }; 

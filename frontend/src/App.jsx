@@ -7,12 +7,137 @@ import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import { AuthContext } from './context/AuthContext';
 import { ChatContext } from './context/ChatContext';
-import { getChats, getGroupMessages, sendMessage, createChat, addUserToGroup, searchUsers, removeUserFromGroup } from './services/api';
+import { getChats, getGroupMessages, sendMessage, createChat, addUserToGroup, searchUsers, removeUserFromGroup, getNotifications, markNotificationRead } from './services/api';
 import io from 'socket.io-client';
 import ChatBox from './components/ChatBox';
 import UserList from './components/UserList';
+import Feed from './pages/Feed';
+import Explore from './pages/Explore';
 
 const SOCKET_URL = 'http://localhost:4000';
+
+const NotificationBell = () => {
+  const { token, user } = useContext(AuthContext);
+  const [notifications, setNotifications] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const socketRef = useRef();
+
+  // Load notifications when component mounts or when opened
+  const loadNotifications = async () => {
+    if (!token || !user) return;
+    setLoading(true);
+    try {
+      const response = await getNotifications(token);
+      console.log('Loaded notifications:', response.data);
+      setNotifications(response.data);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, [token, user]);
+
+  useEffect(() => {
+    if (token && user) {
+      console.log('Connecting to Socket.IO with token and user:', user.id);
+      socketRef.current = io(SOCKET_URL, {
+        auth: { token: `Bearer ${token}` }
+      });
+
+      socketRef.current.on('connect', () => {
+        console.log('Socket.IO connected successfully');
+      });
+
+      socketRef.current.on('notification', (newNotification) => {
+        console.log('Received notification:', newNotification);
+        setNotifications(prev => [newNotification, ...prev]);
+      });
+
+      socketRef.current.on('connect_error', (error) => {
+        console.error('Socket.IO connection error:', error);
+      });
+
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+        }
+      };
+    }
+  }, [token, user]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const handleOpen = () => {
+    setOpen(o => !o);
+    if (!open) {
+      loadNotifications(); // Refresh notifications when opening
+    }
+  };
+  
+  const handleMarkRead = async (id) => {
+    try {
+      await markNotificationRead(id, token);
+      setNotifications(prev => 
+        prev.map(n => n._id === id ? { ...n, read: true } : n)
+      );
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative', marginRight: 24 }}>
+      <button onClick={handleOpen} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }}>
+          <path d="M12 2C13.1 2 14 2.9 14 4V5.29C17.03 6.11 19 8.73 19 12V17L21 19V20H3V19L5 17V12C5 8.73 6.97 6.11 10 5.29V4C10 2.9 10.9 2 12 2ZM12 22C13.1 22 14 21.1 14 20H10C10 21.1 10.9 22 12 22Z" fill="#333" stroke="#333" strokeWidth="0.5"/>
+        </svg>
+        {unreadCount > 0 && (
+          <span style={{ position: 'absolute', top: -2, right: -2, background: 'red', color: 'white', borderRadius: '50%', fontSize: 10, padding: '1px 4px', minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>
+        )}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: 36, background: '#fff', border: '1px solid #ccc', borderRadius: 8, minWidth: 300, zIndex: 100, boxShadow: '0 2px 12px #0001', maxHeight: 400, overflowY: 'auto' }}>
+          <div style={{ padding: 12, borderBottom: '1px solid #eee', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span style={{ background: '#6a82fb', color: 'white', borderRadius: '12px', padding: '2px 8px', fontSize: 12 }}>{unreadCount} new</span>
+            )}
+          </div>
+          {loading ? (
+            <div style={{ padding: 12, textAlign: 'center', color: '#666' }}>Loading notifications...</div>
+          ) : notifications.length === 0 ? (
+            <div style={{ padding: 12, textAlign: 'center', color: '#666' }}>No notifications yet</div>
+          ) : (
+            notifications.map(n => (
+              <div key={n._id} onClick={() => handleMarkRead(n._id)} style={{ 
+                padding: 12, 
+                background: n.read ? '#f7f7f7' : '#e6f0ff', 
+                borderBottom: '1px solid #eee', 
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}>
+                <span style={{ fontWeight: n.read ? 400 : 700, display: 'block', marginBottom: 4 }}>
+                  {n.type === 'like' && <span>❤️ <b>{n.fromUser?.name || 'Someone'}</b> liked your post</span>}
+                  {n.type === 'comment' && (
+                    <span>💬 <b>{n.fromUser?.name || 'Someone'}</b> commented: <span style={{ fontStyle: 'italic', color: '#333' }}>"{n.comment?.text || ''}"</span></span>
+                  )}
+                  {n.type === 'follow' && <span>➕ <b>{n.fromUser?.name || 'Someone'}</b> followed you</span>}
+                  {n.type === 'message' && <span>✉️ <b>{n.fromUser?.name || 'Someone'}</b> sent you a message</span>}
+                  {n.type === 'mention' && <span>@ <b>{n.fromUser?.name || 'Someone'}</b> mentioned you</span>}
+                </span>
+                <div style={{ fontSize: 11, color: '#888' }}>{new Date(n.createdAt).toLocaleString()}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Groups = () => {
   const { user, token } = useContext(AuthContext);
@@ -530,6 +655,8 @@ const Sidebar = () => {
   const navItems = [
     { to: '/chat', label: 'Chats', icon: '💬' },
     { to: '/groups', label: 'Groups', icon: '👥' },
+    { to: '/feed', label: 'Feed', icon: '🏠' },
+    { to: '/explore', label: 'Explore', icon: '🌎' },
     { to: '/profile', label: 'Profile', icon: '🙍‍♂️' },
     { to: '/settings', label: 'Settings', icon: '⚙️' },
   ];
@@ -537,8 +664,6 @@ const Sidebar = () => {
     <div style={{
       width: 100,
       height: '100vh',
-      maxHeight: '100vh',
-      overflow: 'auto',
       background: 'linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%)',
       borderRadius: 32,
       margin: 0,
@@ -547,35 +672,68 @@ const Sidebar = () => {
       flexDirection: 'column',
       alignItems: 'center',
       paddingTop: 32,
+      paddingBottom: 32,
       position: 'sticky',
       top: 0,
       zIndex: 10,
     }}>
       <div style={{ fontWeight: 900, fontSize: 28, color: '#6a82fb', marginBottom: 40, letterSpacing: 1, textShadow: '0 2px 8px #b2e1ff55' }}>✨</div>
-      {navItems.map(item => (
-        <Link key={item.to} to={item.to} style={{
-          textDecoration: 'none',
-          color: location.pathname === item.to ? '#fff' : '#6a82fb',
-          background: location.pathname === item.to ? 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)' : 'transparent',
-          borderRadius: 20,
-          padding: '18px 0',
-          width: 64,
-          textAlign: 'center',
-          marginBottom: 20,
-          fontWeight: 700,
-          fontSize: 22,
-          boxShadow: location.pathname === item.to ? '0 2px 8px #fc5c7d33' : 'none',
-          transition: 'all 0.2s',
-        }}>{item.icon}<div style={{ fontSize: 13 }}>{item.label}</div></Link>
-      ))}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        flex: 1, 
+        justifyContent: 'space-between',
+        width: '100%',
+        alignItems: 'center'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {navItems.slice(0, 4).map(item => (
+            <Link key={item.to} to={item.to} style={{
+              textDecoration: 'none',
+              color: location.pathname === item.to ? '#fff' : '#6a82fb',
+              background: location.pathname === item.to ? 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)' : 'transparent',
+              borderRadius: 20,
+              padding: '18px 0',
+              width: 64,
+              textAlign: 'center',
+              marginBottom: 20,
+              fontWeight: 700,
+              fontSize: 22,
+              boxShadow: location.pathname === item.to ? '0 2px 8px #fc5c7d33' : 'none',
+              transition: 'all 0.2s',
+            }}>{item.icon}<div style={{ fontSize: 13 }}>{item.label}</div></Link>
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {navItems.slice(4).map(item => (
+            <Link key={item.to} to={item.to} style={{
+              textDecoration: 'none',
+              color: location.pathname === item.to ? '#fff' : '#6a82fb',
+              background: location.pathname === item.to ? 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)' : 'transparent',
+              borderRadius: 20,
+              padding: '18px 0',
+              width: 64,
+              textAlign: 'center',
+              marginBottom: 20,
+              fontWeight: 700,
+              fontSize: 22,
+              boxShadow: location.pathname === item.to ? '0 2px 8px #fc5c7d33' : 'none',
+              transition: 'all 0.2s',
+            }}>{item.icon}<div style={{ fontSize: 13 }}>{item.label}</div></Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
 
 const AppLayout = () => (
-  <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)' }}>
+  <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', background: 'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)' }}>
     <Sidebar />
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '8px 16px 0 16px', background: 'transparent' }}>
+        <NotificationBell />
+      </div>
       <Outlet />
     </div>
   </div>
@@ -594,6 +752,8 @@ const App = () => {
             <Route index element={<Navigate to="/chat" />} />
             <Route path="chat" element={<Chat />} />
             <Route path="groups" element={<Groups />} />
+            <Route path="feed" element={<Feed />} />
+            <Route path="explore" element={<Explore />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/chat" />} />

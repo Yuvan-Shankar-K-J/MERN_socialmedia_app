@@ -7,9 +7,15 @@ const { Server } = require('socket.io');
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
 const messageRoutes = require('./routes/message');
+const postRoutes = require('./routes/post');
+const commentRoutes = require('./routes/comment');
+const userRoutes = require('./routes/user');
+const notificationRoutes = require('./routes/notification');
 const path = require('path');
 const User = require('./models/User');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
 // Load environment variables
 dotenv.config();
@@ -37,8 +43,13 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
+app.locals.io = io;
 
 // Only handle non-API routes with the SPA fallback
 app.get(/^\/(?!api).*/, (req, res) => {
@@ -88,6 +99,24 @@ app.get('/', (req, res) => {
 
 // Enhanced Socket.IO setup
 io.on('connection', (socket) => {
+  // Authenticate user and join their room for notifications
+  try {
+    const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+    console.log('Socket connection attempt with token:', token ? 'present' : 'missing');
+    if (token) {
+      const decoded = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
+      if (decoded && decoded.id) {
+        socket.join(decoded.id);
+        console.log('User authenticated and joined room:', decoded.id);
+      } else {
+        console.log('Invalid token for socket connection');
+      }
+    } else {
+      console.log('No token provided for socket connection');
+    }
+  } catch (e) { 
+    console.log('Socket authentication error:', e.message);
+  }
   console.log('A user connected:', socket.id);
 
   // Join a chat room (private or group)

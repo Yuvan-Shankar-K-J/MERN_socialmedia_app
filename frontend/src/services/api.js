@@ -30,3 +30,19 @@ export const linkAccount = (provider, token) => axios.post(`${API_URL}/auth/link
 export const unlinkAccount = (provider, token) => axios.post(`${API_URL}/auth/unlink-account`, { provider }, { headers: { Authorization: `Bearer ${token}` } });
 
 export const getUserProfile = (id, token) => axios.get(`${API_URL}/auth/profile/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+
+// Posts
+export const getPosts = (token, userId) => axios.get(`${API_URL}/posts${userId ? `?userId=${userId}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+export const getFeed = (token) => axios.get(`${API_URL}/posts/feed`, { headers: { Authorization: `Bearer ${token}` } });
+export const getExplore = (token) => axios.get(`${API_URL}/posts/explore`, { headers: { Authorization: `Bearer ${token}` } });
+export const likePost = (postId, token) => axios.post(`${API_URL}/posts/${postId}/like`, {}, { headers: { Authorization: `Bearer ${token}` } });
+export const unlikePost = (postId, token) => axios.post(`${API_URL}/posts/${postId}/unlike`, {}, { headers: { Authorization: `Bearer ${token}` } });
+
+export const getComments = (postId, token) => axios.get(`${API_URL}/comments/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
+export const addComment = (postId, text, token) => axios.post(`${API_URL}/comments/${postId}`, { text }, { headers: { Authorization: `Bearer ${token}` } });
+
+export const getNotifications = (token) => axios.get(`${API_URL}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
+export const markNotificationRead = (id, token) => axios.put(`${API_URL}/notifications/${id}/read`, {}, { headers: { Authorization: `Bearer ${token}` } });
+
+export const followUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/follow`, {}, { headers: { Authorization: `Bearer ${token}` } });
+export const unfollowUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/unfollow`, {}, { headers: { Authorization: `Bearer ${token}` } });

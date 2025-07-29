@@ -14,6 +14,8 @@ const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true, sparse: true },
   bio: { type: String, default: '' },
   location: { type: String, default: '' },
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: [] }],
   dateJoined: { type: Date, default: Date.now },
   twoFactorEnabled: { type: Boolean, default: false },
 }, { timestamps: true });
