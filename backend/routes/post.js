@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const postController = require('../controllers/postController');
+const { createPost, getFeed, getExplore, likePost, unlikePost, deletePost } = require('../controllers/postController');
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
@@ -17,19 +17,11 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Create a post (with optional media upload)
-router.post('/', auth, upload.single('media'), postController.createPost);
-// Get posts (optionally by user)
-router.get('/', auth, postController.getPosts);
-// Get feed (posts from followed users)
-router.get('/feed', auth, postController.getFeed);
-// Get explore (random/public posts)
-router.get('/explore', auth, postController.getExplore);
-// Delete a post
-router.delete('/:id', auth, postController.deletePost);
-// Like a post
-router.post('/:id/like', auth, postController.likePost);
-// Unlike a post
-router.post('/:id/unlike', auth, postController.unlikePost);
+router.post('/', auth, createPost);
+router.get('/feed', auth, getFeed);
+router.get('/explore', auth, getExplore);
+router.post('/:id/like', auth, likePost);
+router.post('/:id/unlike', auth, unlikePost);
+router.delete('/:id', auth, deletePost);
 
 module.exports = router;

@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { getComments, addComment } from '../services/api';
+import { getComments, addComment, deleteComment } from '../services/api';
 import io from 'socket.io-client';
 
 const SOCKET_URL = 'http://localhost:4000';
 
 const CommentSection = ({ postId, token, user, postOwnerId }) => {
   const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [text, setText] = useState('');
-  const [error, setError] = useState('');
-  const [posting, setPosting] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const socketRef = useRef();
 
@@ -50,31 +48,44 @@ const CommentSection = ({ postId, token, user, postOwnerId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    setPosting(true);
-    setError('');
+    if (!newComment.trim()) return;
+    
+    setLoading(true);
     try {
-      const res = await addComment(postId, text, token);
-      setComments(comments => [...comments, { ...res.data, user: { _id: user._id, name: user.name, avatar: user.avatar } }]);
-      setText('');
-    } catch {
-      setError('Failed to add comment');
+      const response = await addComment(postId, newComment, token);
+      setComments([response.data, ...comments]);
+      setNewComment('');
+    } catch (err) {
+      console.error('Error adding comment:', err);
+      alert('Failed to add comment');
     } finally {
-      setPosting(false);
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        await deleteComment(commentId, token);
+        setComments(comments.filter(comment => comment._id !== commentId));
+      } catch (err) {
+        console.error('Error deleting comment:', err);
+        alert('Failed to delete comment');
+      }
     }
   };
 
   return (
     <div style={{ marginTop: 18, background: '#f7f7f7', borderRadius: 12, padding: 18, overflowX: 'hidden', maxWidth: '100%', boxShadow: '0 2px 8px #b2e1ff22', textAlign: 'left' }}>
-      {/* Real-time notifications */}
+      {/* Real-time notifications display */}
       {notifications.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           {notifications.map(notification => (
-            <div key={notification._id} style={{ 
-              background: 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)', 
-              color: 'white', 
-              padding: '8px 12px', 
-              borderRadius: 8, 
+            <div key={notification._id} style={{
+              background: 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: 8,
               marginBottom: 8,
               fontSize: 14,
               fontWeight: 600,
@@ -92,27 +103,58 @@ const CommentSection = ({ postId, token, user, postOwnerId }) => {
       )}
       
       <div style={{ fontWeight: 700, marginBottom: 12 }}>Comments</div>
-      {loading ? <div>Loading...</div> : comments.length === 0 ? <div>No comments yet.</div> : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxWidth: '100%' }}>
-          {comments.map((c, i) => (
-            <li key={c._id || i} style={{ marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 8, color: '#111', maxWidth: '100%', wordBreak: 'break-word', textAlign: 'left' }}>
-              <span style={{ fontWeight: 600 }}>{c.user?.name || 'User'}:</span> {c.text}
-            </li>
-          ))}
-        </ul>
-      )}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, marginTop: 16, maxWidth: '100%' }}>
-        <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Add a comment..."
-          style={{ flex: 1, borderRadius: 4, border: '1px solid #ccc', padding: 6, maxWidth: '100%', background: '#fff', color: '#111' }}
-        />
-        <button type="submit" disabled={posting || !text.trim()} style={{ borderRadius: 4, background: '#fff', color: '#111', border: '1px solid #6a82fb', padding: '6px 16px', fontWeight: 700 }}>
-          {posting ? 'Posting...' : 'Post'}
-        </button>
+      
+      <form onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Write a comment..."
+            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 }}
+          />
+          <button
+            type="submit"
+            disabled={loading || !newComment.trim()}
+            style={{ padding: '8px 16px', borderRadius: 8, background: 'linear-gradient(135deg, #6a82fb 0%, #fc5c7d 100%)', color: 'white', border: 'none', fontWeight: 600, cursor: 'pointer', opacity: loading || !newComment.trim() ? 0.6 : 1 }}
+          >
+            {loading ? 'Posting...' : 'Post'}
+          </button>
+        </div>
       </form>
-      {error && <div style={{ color: 'red', marginTop: 4 }}>{error}</div>}
+      
+      <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+        {comments.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#666', padding: '1em' }}>No comments yet. Be the first to comment!</div>
+        ) : (
+          comments.map(comment => {
+            const isOwner = comment.user?._id === user.id || comment.user?.id === user.id;
+            return (
+              <div key={comment._id} style={{ padding: '12px 0', borderBottom: '1px solid #eee', wordBreak: 'break-word' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <img src={comment.user?.avatar} alt={comment.user?.name} style={{ width: 24, height: 24, borderRadius: '50%', marginRight: 8, objectFit: 'cover' }} />
+                    <strong style={{ fontSize: 14, color: '#111' }}>{comment.user?.name}</strong>
+                  </div>
+                  {isOwner && (
+                    <button
+                      onClick={() => handleDeleteComment(comment._id)}
+                      style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: 12, padding: '2px 4px', borderRadius: 4 }}
+                      title="Delete comment"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+                <div style={{ color: '#111', fontSize: 14, marginLeft: 32 }}>{comment.text}</div>
+                <div style={{ fontSize: 11, color: '#888', marginLeft: 32, marginTop: 4 }}>
+                  {new Date(comment.createdAt).toLocaleString()}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 };

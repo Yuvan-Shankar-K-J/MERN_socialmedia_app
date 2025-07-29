@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getExplore, likePost, unlikePost, followUser, unfollowUser } from '../services/api';
+import { getExplore, likePost, unlikePost, followUser, unfollowUser, deletePost } from '../services/api';
+import axios from 'axios';
 import CommentSection from '../components/CommentSection';
 
 const getMediaUrl = (media) => {
@@ -63,24 +64,35 @@ const Explore = () => {
     } catch {}
   };
 
+  const handleDeletePost = async (postId) => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      try {
+        await deletePost(postId, token);
+        setPosts(posts.filter(post => post._id !== postId));
+      } catch (err) {
+        console.error('Error deleting post:', err);
+        alert('Failed to delete post');
+      }
+    }
+  };
+
   if (loading) return <div>Loading explore...</div>;
   if (error) return <div>{error}</div>;
 
   return (
-    <div>
-      <h2>Explore</h2>
-      {loading ? (
-        <div>Loading explore...</div>
-      ) : error ? (
-        <div>{error}</div>
-      ) : posts.length === 0 ? (
-        <div>No posts to show.</div>
-      ) : (
-        posts.map(post => {
-          const liked = post.likes?.includes(user.id) || post.likes?.includes(user._id);
-          return (
-            <div key={post._id} style={{ border: '1px solid #e0e7ef', margin: '2em auto', padding: '1.5em', borderRadius: 16, maxWidth: 600, width: '100%', background: '#fff', boxSizing: 'border-box', boxShadow: '0 2px 12px rgba(80,120,200,0.08)', textAlign: 'left', color: '#111' }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+    <div style={{ marginTop: 0 }}>
+      {loading && <div style={{ textAlign: 'center', padding: '2em' }}>Loading...</div>}
+      {error && <div style={{ textAlign: 'center', padding: '2em', color: 'red' }}>{error}</div>}
+      {!loading && !error && posts.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '2em', color: '#666' }}>No posts to explore yet.</div>
+      )}
+      {posts.map(post => {
+        const liked = post.likes?.includes(user.id) || post.likes?.includes(user._id);
+        const isOwner = post.user?._id === user.id || post.user?.id === user.id;
+        return (
+          <div key={post._id} style={{ border: '1px solid #e0e7ef', margin: '2em auto', padding: '1.5em', borderRadius: 16, maxWidth: 600, width: '100%', background: '#fff', boxSizing: 'border-box', boxShadow: '0 2px 12px rgba(80,120,200,0.08)', textAlign: 'left', color: '#111' }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <img src={post.user?.avatar} alt={post.user?.name} style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 10, objectFit: 'cover', border: '1px solid #eee' }} />
                 <strong style={{ color: '#111' }}>{post.user?.name}</strong>
                 {post.user?._id !== user.id && post.user?.id !== user.id && (
@@ -92,26 +104,35 @@ const Explore = () => {
                   </button>
                 )}
               </div>
-              <div style={{ color: '#111' }}>{post.text}</div>
-              {post.media && (getMediaUrl(post.media).endsWith('.mp4') || getMediaUrl(post.media).endsWith('.webm') ? (
-                <video src={getMediaUrl(post.media)} controls style={{ maxWidth: '100%', maxHeight: 300 }} />
-              ) : (
-                <img src={getMediaUrl(post.media)} alt="media" style={{ maxWidth: '100%', maxHeight: 300 }} />
-              ))}
-              <div>Likes: {post.likes?.length || 0}</div>
-              <button onClick={() => handleLike(post._id, liked)} style={{ marginTop: 12, marginRight: 12, padding: '8px 18px', borderRadius: 8, background: liked ? 'linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%)' : '#f0f4fa', color: liked ? '#fff' : '#222', border: 'none', fontWeight: 700, cursor: 'pointer', boxShadow: liked ? '0 2px 8px #fc5c7d33' : 'none', transition: 'all 0.2s' }}>
-                {liked ? 'Unlike' : 'Like'}
-              </button>
-              <button onClick={() => setOpenComments(c => ({ ...c, [post._id]: !c[post._id] }))} style={{ marginTop: 12, padding: '8px 18px', borderRadius: 8, background: '#f0f4fa', color: '#222', border: 'none', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
-                {openComments[post._id] ? 'Hide Comments' : 'Show Comments'}
-              </button>
-              {openComments[post._id] && (
-                <CommentSection postId={post._id} token={token} user={user} postOwnerId={post.user?._id || post.user?.id} />
+              {isOwner && (
+                <button
+                  onClick={() => handleDeletePost(post._id)}
+                  style={{ background: 'none', border: 'none', color: '#ff4757', cursor: 'pointer', fontSize: 16, padding: '4px 8px', borderRadius: 4 }}
+                  title="Delete post"
+                >
+                  🗑️
+                </button>
               )}
             </div>
-          );
-        })
-      )}
+            <div style={{ color: '#111' }}>{post.text}</div>
+            {post.media && (getMediaUrl(post.media).endsWith('.mp4') || getMediaUrl(post.media).endsWith('.webm') ? (
+              <video src={getMediaUrl(post.media)} controls style={{ maxWidth: '100%', maxHeight: 300 }} />
+            ) : (
+              <img src={getMediaUrl(post.media)} alt="media" style={{ maxWidth: '100%', maxHeight: 300 }} />
+            ))}
+            <div>Likes: {post.likes?.length || 0}</div>
+            <button onClick={() => handleLike(post._id, liked)} style={{ marginTop: 12, marginRight: 12, padding: '8px 18px', borderRadius: 8, background: liked ? 'linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%)' : '#f0f4fa', color: liked ? '#fff' : '#222', border: 'none', fontWeight: 700, cursor: 'pointer', boxShadow: liked ? '0 2px 8px #fc5c7d33' : 'none', transition: 'all 0.2s' }}>
+              {liked ? 'Unlike' : 'Like'}
+            </button>
+            <button onClick={() => setOpenComments(c => ({ ...c, [post._id]: !c[post._id] }))} style={{ marginTop: 12, padding: '8px 18px', borderRadius: 8, background: '#f0f4fa', color: '#222', border: 'none', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+              {openComments[post._id] ? 'Hide Comments' : 'Show Comments'}
+            </button>
+            {openComments[post._id] && (
+              <CommentSection postId={post._id} token={token} user={user} postOwnerId={post.user?._id || post.user?.id} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

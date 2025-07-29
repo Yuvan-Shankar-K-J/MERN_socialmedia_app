@@ -1,8 +1,7 @@
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
 const Notification = require('../models/Notification');
-
-const getIO = req => req.app && req.app.locals && req.app.locals.io;
+const { getIO } = require('../index');
 
 // Add a comment to a post
 exports.addComment = async (req, res) => {
@@ -52,12 +51,23 @@ exports.getComments = async (req, res) => {
 // Delete a comment
 exports.deleteComment = async (req, res) => {
   try {
-    const comment = await Comment.findById(req.params.id);
-    if (!comment) return res.status(404).json({ error: 'Comment not found' });
-    if (comment.user.toString() !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
-    await comment.remove();
-    res.json({ message: 'Comment deleted' });
+    const comment = await Comment.findById(req.params.id).populate('user');
+    
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    // Check if the user is the owner of the comment
+    if (comment.user._id.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete your own comments' });
+    }
+    
+    // Delete the comment
+    await Comment.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'Comment deleted successfully' });
   } catch (err) {
+    console.error('Error in deleteComment:', err);
     res.status(500).json({ error: err.message });
   }
 };

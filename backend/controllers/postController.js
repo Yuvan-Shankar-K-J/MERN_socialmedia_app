@@ -2,8 +2,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const path = require('path');
 const Notification = require('../models/Notification');
-
-const getIO = req => req.app && req.app.locals && req.app.locals.io;
+const { getIO } = require('../index');
 
 // Create a new post (with optional media upload)
 exports.createPost = async (req, res) => {
@@ -36,12 +35,23 @@ exports.getPosts = async (req, res) => {
 // Delete a post
 exports.deletePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (post.user.toString() !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
-    await post.remove();
-    res.json({ message: 'Post deleted' });
+    const post = await Post.findById(req.params.id).populate('user');
+    
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    // Check if the user is the owner of the post
+    if (post.user._id.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'You can only delete your own posts' });
+    }
+    
+    // Delete the post
+    await Post.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'Post deleted successfully' });
   } catch (err) {
+    console.error('Error in deletePost:', err);
     res.status(500).json({ error: err.message });
   }
 };

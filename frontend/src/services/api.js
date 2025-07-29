@@ -46,3 +46,6 @@ export const markNotificationRead = (id, token) => axios.put(`${API_URL}/notific
 
 export const followUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/follow`, {}, { headers: { Authorization: `Bearer ${token}` } });
 export const unfollowUser = (userId, token) => axios.post(`${API_URL}/users/${userId}/unfollow`, {}, { headers: { Authorization: `Bearer ${token}` } });
+
+export const deletePost = (postId, token) => axios.delete(`${API_URL}/posts/${postId}`, { headers: { Authorization: `Bearer ${token}` } });
+export const deleteComment = (commentId, token) => axios.delete(`${API_URL}/comments/${commentId}`, { headers: { Authorization: `Bearer ${token}` } });
